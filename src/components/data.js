@@ -1,0 +1,33 @@
+export default {
+    scene1:{
+        pump:{
+            objUrl:'/pump.obj',
+            mtlUrl:'/pump.mtl',
+            pngUrl:'/pump.png',
+            position:{
+                x:110,
+                y:10,
+                z:10
+            }
+        },
+        host:{
+            objUrl:'/host.obj',
+            mtlUrl:'/host.mtl',
+            pngUrl:'/host.png',
+            position:{
+                x:-20,
+                y:10,
+                z:10
+            }
+        },
+        pumpFan:{
+            objUrl:'/pump-fan.obj',
+            mtlUrl:'/pump.mtl',
+            position:{
+                x:123,
+                y:30,
+                z:10
+            }
+        }
+    }
+}
