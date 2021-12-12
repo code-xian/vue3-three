@@ -1,24 +1,25 @@
 <template>
   <div>
     <div ref="container2" id="container2">
-<!--      <div ref="panel" style="width: 100px;height: 100px;background: greenyellow;z-index: 1111;position: relative">这是个面板</div>-->
-      <div id="notice"></div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { defineComponent, onMounted,nextTick,computed,reactive,ref} from "vue";
+// npm i three-obj-mtl-loader --save
+import { onMounted,nextTick,computed,reactive,ref,onBeforeUnmount,watch,watchEffect,toRaw} from "vue";
 import * as THREE from "three"; //引入Threejs
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import data from './data'
 // threejs部分
-import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js"; // gltf加载器
-import { MTLLoader } from "three/examples/jsm/loaders/MTLLoader.js"; // gltf加载器
-import { CSS2DRenderer,CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js"; // gltf加载器
-import { Geometry } from "three/examples/jsm/deprecated/Geometry.js"; // gltf加载器
+import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js"; // obj加载器
+import { MTLLoader } from "three/examples/jsm/loaders/MTLLoader.js"; // mtl加载器
+import { CSS2DRenderer,CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js"; // css2d加载器
+import { Geometry } from "three/examples/jsm/deprecated/Geometry.js"; // 加载器
 //三维场景显示范围控制系数，系数越大，显示的范围越大
 const s = 200;
+const width = window.innerWidth; //窗口宽度
+const height = window.innerHeight; //窗口高度
 // 场景
 let scene = new THREE.Scene();
 
@@ -27,6 +28,14 @@ let objLoader = new OBJLoader();
 let mtlLoader = new MTLLoader();
 
 let textureLoader = new THREE.TextureLoader();
+
+const clock = new THREE.Clock();
+
+let raycaster = new THREE.Raycaster();//创建光线投射对象
+let mouse = new THREE.Vector2();//创建二维平面
+
+let clip = {}
+let mixer = []
 
 // 模型
 let mesh = {};
@@ -42,36 +51,50 @@ let labelRenderer = {};
 let boxHelper = null;
 
 // 当前选中的模型
-let selectedObject = {};
+let selectedObject = reactive({object:{}});
 // 当前场景
 const curScene = computed(() => data['scene1'])
+// const width = computed(() => window.innerWidth)
+// const height = computed(() => window.innerHeight)
+
 
 const container2 = ref(null)
-const panel = ref(null)
+// const panel = ref(null)
+let hostMesh = []
+let pumpMesh = []
+let pumpFanMesh = []
 
-let hostMesh = null
-let pumpMesh = null
-let pumpFanMesh = null
-
+watch(()=>selectedObject.object,(newValue,oldValue)=>{
+  //vue中的响应式对象可使用toRaw()方法获取原始对象。
+  if(JSON.stringify(toRaw(newValue)) === '{}'){
+    let objectByName = scene.getObjectByName('panel');
+    if(objectByName) objectByName.parent.remove(objectByName)
+  }
+},{
+  // deep:true
+})
 // 初始化
 async function init() {
   initPoint();
   initCamera();
+  createRenderer()
+  createKeyFrame()
   tool()
   await importMesh()
-  GUIPanel()
-  const label = tag();
-  pumpMesh.add(label);
+  createCss2DRenderer()
   // 挂载到dom中
   // document.getElementById("container2").appendChild(renderer.domElement);
   container2.value.appendChild(renderer.domElement);
   //创建控件对象
-  controls = new OrbitControls(camera, renderer.domElement);
+  controls = new OrbitControls(camera, labelRenderer.domElement);
   // 使动画循环使用时阻尼或自转 意思是否有惯性
   controls.enableDamping = true;
-  controls.addEventListener("change", () => {
+  controls.minDistance = 120
+  controls.maxDistance = 10000
+  controls.addEventListener("change", (e) => {
     // renderer.render(scene, camera);
   }); //监听鼠标、键盘事件
+
   render()
 }
 
@@ -79,40 +102,35 @@ function tag(){
   const div = document.createElement('div');
   // div.style.visibility = 'hidden';
   div.innerHTML = 'GDP';
+  div.className = 'label';
   div.style.padding = '4px 10px';
   div.style.color = '#fff';
   div.style.fontSize = '16px';
-  // div.style.position = 'absolute';
+  div.style.position = 'absolute';
   div.style.backgroundColor = 'rgba(25,25,25,0.5)';
   div.style.borderRadius = '5px';
-  div.onclick = function () {
-    console.log(1111)
-  };
+  div.addEventListener('mousedown',function (){
+    console.log(22222222)
+  })
+  // div.style.pointerEvents = 'none';//避免HTML标签遮挡三维场景的鼠标事件
   // div元素包装成为css2模型对象CSS2DObject
   const label =new CSS2DObject(div);
   // label.position.set( 101, 111, 111 );
-  // div.style.pointerEvents = 'none';//避免HTML标签遮挡三维场景的鼠标事件
   // 设置HTML元素标签在three.js世界坐标中位置
   // label.position.set(x, y, z);
   return label;
 }
 // CSS2DObject
-function GUIPanel() {
-  // var moonLabel = new CSS2DObject(panel.value);
-  // moonLabel.position.set( 10, 1, 0 );
-  // hostMesh.add( moonLabel );
-  // labelRenderer = new CSS2DRenderer();
-  // labelRenderer.setSize( window.innerWidth, window.innerHeight );
-  // labelRenderer.domElement.style.position = 'absolute';
-  // labelRenderer.domElement.style.top = 0;
+function createCss2DRenderer() {
   labelRenderer = new CSS2DRenderer();
-  labelRenderer.setSize(window.innerWidth, window.innerHeight);
+  labelRenderer.setSize(width, height);
   labelRenderer.domElement.style.position = 'absolute';
 // 相对鼠标的相对偏移
   labelRenderer.domElement.style.top = '0px';
   labelRenderer.domElement.style.left = '0px';
-// //设置.pointerEvents=none，以免模型标签HTML元素遮挡鼠标选择场景模型
-  labelRenderer.domElement.style.pointerEvents = 'none';
+  // labelRenderer.domElement.style.background = 'rgba(102,203,136,0.4)';
+//设置.pointerEvents=none，以免模型标签HTML元素遮挡鼠标选择场景模型
+//   labelRenderer.domElement.style.pointerEvents = 'none';
   container2.value.appendChild(labelRenderer.domElement);
 }
 // 工具
@@ -149,24 +167,21 @@ function initPoint() {
 }
 // 初始化相机
 function initCamera() {
-  var width = window.innerWidth; //窗口宽度
-  var height = window.innerHeight; //窗口高度
   var k = width / height; //窗口宽高比
   //创建相机对象
-  // camera = new THREE.OrthographicCamera(-s * k, s * k, s, -s, 1, 1000);
-  camera = new THREE.PerspectiveCamera( 50, width / height, 1, 10000 );
+  // camera = new THREE.OrthographicCamera(-s * k, s * k, s, -s, 1, 1000); // 正交相机
+  camera = new THREE.PerspectiveCamera( 50, width / height, 1, 10000 );// 透视
   //设置相机位置
   camera.position.set(0, 400, 600);
   //设置相机方向(指向的场景对象)
   camera.lookAt(scene.position);
+}
+// 生产渲染器
+function createRenderer() {
   // 渲染器
-  renderer = new THREE.WebGLRenderer();
+  renderer = new THREE.WebGLRenderer({antialias:true,alpha:true});
   renderer.setSize(width, height); //设置渲染区域尺寸
   renderer.setClearColor(0xb9d3ff, 1); //设置背景颜色
-}
-// 渲染单个模型
-function loadSingleModel(url) {
-  return loadObjModel(url)
 }
 // load a resource
 function loadObjModel({mtlUrl,objUrl,pngUrl,position}) {
@@ -176,8 +191,6 @@ function loadObjModel({mtlUrl,objUrl,pngUrl,position}) {
         objUrl,
         // called when resource is loaded
         function ( object ) {
-          console.log(object);
-          console.log(object.children);
           if (pngUrl) {
             object.traverse(function(child) {
               if (child instanceof THREE.Mesh) {
@@ -191,7 +204,7 @@ function loadObjModel({mtlUrl,objUrl,pngUrl,position}) {
               if (child instanceof THREE.Mesh) {
                 //设置模型皮肤
                 // child.material.map = THREE.ImageUtils.loadTexture( '/pump.png');
-                // child.material.color = 'red'
+                console.log(child);
               }
             });
           }
@@ -226,42 +239,54 @@ async function importMesh() {
   pumpMesh = await importPump();
   hostMesh = await importHost();
   pumpFanMesh = await importPumpFan();
-  scene.add(pumpMesh)
-  scene.add(hostMesh)
-  scene.add(pumpFanMesh)
+  const meshs = [...pumpMesh,...hostMesh,...pumpFanMesh]
+  let group1 = new THREE.Group();
+  group1.add(...meshs.filter(item=>item.group === 1))
+  group1.name = 'group1'
+  let group2 = new THREE.Group();
+  group2.add(...meshs.filter(item=>item.group === 2))
+  group2.name = 'group2'
+  scene.add(group1,group2)
+  // scene.add(...pumpMesh)
 }
 // 导入主机
-function importHost() {
-  return new Promise((resolve)=>{
-    const host = curScene.value.host
-    resolve(loadMtl(host))
-  })
+async function importHost() {
+  let hostMeshList = []
+  const host = curScene.value.host
+  for (let i = 0; i < host.length; i++) {
+    hostMeshList.push(await loadMtl(host[i]))
+  }
+  return hostMeshList
 }
 // 导入水泵
-function importPump() {
-  return new Promise((resolve)=>{
-    const pump = curScene.value.pump
-    resolve(loadMtl(pump))
-  })
+async function importPump() {
+  let pumpMeshList = []
+  const pump = curScene.value.pump
+  for (let i = 0; i < pump.length; i++) {
+    pumpMeshList.push(await loadMtl(pump[i]))
+  }
+  return pumpMeshList
 }
 // 导入风扇
-function importPumpFan() {
-  return new Promise((resolve)=>{
-    const pumpFan = curScene.value.pumpFan
-    resolve(loadObjModel(pumpFan))
-  })
+async function importPumpFan() {
+  let pumpFanMeshList = []
+  const pumpFan = curScene.value.pumpFan
+  for (let i = 0; i < pumpFan.length; i++) {
+    pumpFanMeshList.push(await loadMtl(pumpFan[i]))
+  }
+  return pumpFanMeshList
 }
 
 // 加载材质后加载模型
-function loadMtl({mtlUrl,objUrl,pngUrl,position}) {
-  return new Promise(resolve => {
+function loadMtl({name ='',mtlUrl = '',objUrl,pngUrl,position,group}) {
+  return new Promise((resolve,reject) => {
     mtlLoader.load(mtlUrl, function (material) {
       let objLoader = new OBJLoader();
       //设置当前加载的纹理
       objLoader.setMaterials(material);
       // objLoader.setPath('/lib/assets/models/');
       objLoader.load(objUrl, function (object) {
-
+        console.log('模型：',object);
         // //获取两个翅膀的位置
         // var wing2 = object.children[5];
         // var wing1 = object.children[4];
@@ -277,36 +302,60 @@ function loadMtl({mtlUrl,objUrl,pngUrl,position}) {
         // wing2.material.transparent = true;
         // wing2.material.side = THREE.DoubleSide;
         //
+        if(!mtlUrl){
+          object.traverse(function(child) {
+            if (child instanceof THREE.Mesh) {
+              //设置模型皮肤
+              // child.material.color.set('red')
+            }
+          });
+        }
         // //将模型缩放并添加到场景当中
         // object.scale.set(100, 100, 100);
+        //     object.material.map =  textureLoaderRes(pngUrl)
         object.traverse(function(child) {
           if (child instanceof THREE.Mesh) {
             //设置模型皮肤
             child.material.map = textureLoaderRes(pngUrl)
           }
         });
+        object.name = name
+        object.group = group
         object.position.set(position.x, position.y, position.z); // x,y,z
+        // playAnimation(object)
         resolve(object)
       },function ( xhr ) {
         console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
-      },)
+      },
+      function (error){
+        console.log( 'An error happened',error );
+        reject()
+      })
     });
   })
 }
-// 循环渲染
-const render = () => {
-  requestAnimationFrame(render);
-  renderer.clear(); // 清除画布
-  labelRenderer.render( scene, camera );
-  controls.update(); // 轨道控制器的更新
-  renderer.clear(); // 清除画布
-  renderer.render(scene, camera);
-  if (pumpFanMesh) {
-    pumpFanMesh.rotateX(0.1);
-  }
-};
 
+// 创建关键帧动画片段
+function createKeyFrame() {
+  // var scaleTrack = new THREE.KeyframeTrack('水泵1.scale',[0,20],[1,1,1,3,3,3])
+  var scaleTrack = new THREE.KeyframeTrack('主机.rotation[x]',[0,3],[0,Math.PI *2])
+  var duration = 3
+  clip = new THREE.AnimationClip('default',duration,[scaleTrack])
+}
 
+function playAnimation(group) {
+  mixer.push(new THREE.AnimationMixer(group))
+  mixer.forEach(mixer=>{
+    let AnimationAction = mixer.clipAction(clip)
+    // AnimationAction.timeScale = 20  // 速率
+    // AnimationAction.loop = THREE.LoopOnce // 循环类型 有三种
+    // AnimationAction.clampWhenFinished = true // 是否保持在最后一帧的状态
+    AnimationAction.time = 5 // 进度
+    // clip.duration = AnimationAction.time // 进度
+    AnimationAction.play()
+  })
+  console.log(mixer);
+}
 // 键盘移动事件
 function keyPressed(e) {
   var key = e.keyCode;
@@ -315,52 +364,143 @@ function keyPressed(e) {
   }
   switch (key) {
     case 37: // 左
-      selectedObject.translateX(-0.5);
+      selectedObject.object.translateX(-1);
       break;
     case 39: // 右
-      selectedObject.position.x += 0.5;
+      selectedObject.object.position.x += 1;
       break;
     case 38: // 上
-      selectedObject.position.z -= 0.5;
+      selectedObject.object.position.z -= 1;
       break;
     case 40: // 下
-      selectedObject.position.z += 0.5;
+      selectedObject.object.position.z += 1;
       break;
   }
 }
 // 鼠标点击事件
 function mouseDownFuc(e){
-  // e.preventDefault()
-  let raycaster = new THREE.Raycaster();//创建光线投射对象
-  let mouse = new THREE.Vector2();//创建二维平面
-  let intersectsObjArr = getSelsectOBj(mouse,raycaster, e);//通过封装的getSelsectOBj函数获取鼠标选中对象集合，e是点击事件对象
-  console.log(intersectsObjArr);
-  if (intersectsObjArr.length > 0) {
-    let objectMesh = intersectsObjArr.find(element => element.object.type === 'Mesh');
-    if (objectMesh) {
-      if (boxHelper) {
-        scene.remove(boxHelper)
+  e.preventDefault()
+  // 声明 raycaster 和 mouse 变量
+  // let raycaster = new THREE.Raycaster();//创建光线投射对象
+  // let mouse = new THREE.Vector2();//创建二维平面
+  // 右击触发
+  if (e.button === 2) {
+    let intersectsObjArr = getSelectOBj(mouse, raycaster, e);//通过封装的getSelsectOBj函数获取鼠标选中对象集合，e是点击事件对象
+    if (intersectsObjArr.length > 0) {
+      console.log(intersectsObjArr);
+      let objectMesh = intersectsObjArr.find(element => element.object.type === 'Mesh'); // 寻找第一个mesh对象，对象数组是按距离由近到远排序的
+      // let objectMesh = intersectsObjArr[0] // 寻找第一个mesh对象，对象数组是按距离由近到远排序的
+      if (objectMesh) {
+        // objectMesh.object.material.color.set(0xff0000)
+        if (boxHelper) {
+          scene.remove(boxHelper)
+        }
+        boxHelper = new THREE.BoxHelper(objectMesh.object,0xffff00);
+        scene.add(boxHelper)
+        // 如果此次点击的模型 和 上次点击模型不一样就执行
+        if(selectedObject.object.parent?.name !== objectMesh.object.parent?.name){
+          selectedObject.object = objectMesh.object
+          renderDiv(selectedObject.object)
+        }
+      }else{
+        boxHelper && scene.remove(boxHelper)
+        selectedObject.object = {}
+          // let objectByName = scene.getObjectByName('panel');
+          // if(objectByName) objectByName.parent.remove(objectByName)
       }
-      // objectMesh.object.translateX(11);
-      boxHelper = new THREE.BoxHelper(objectMesh.object,0xffff00);
-      scene.add(boxHelper)
-      selectedObject = objectMesh.object
     }else{
       boxHelper && scene.remove(boxHelper)
+      selectedObject.object = {}
+        // let objectByName = scene.getObjectByName('panel');
+        // if(objectByName) objectByName.parent.remove(objectByName)
     }
-  }else{
-    boxHelper && scene.remove(boxHelper)
   }
 }
 //获取事件操作对象
-function getSelsectOBj(mouse,raycaster, e) {
-  //将html坐标系转化为webgl坐标系，并确定鼠标点击位置
+function getSelectOBj(mouse, raycaster, e) {
+  // 通过鼠标点击位置,计算出 raycaster 所需点的位置,以屏幕为中心点,范围 -1 到 1
   mouse.x =  e.clientX / renderer.domElement.clientWidth*2-1;
   mouse.y =  -(e.clientY / renderer.domElement.clientHeight*2)+1;
-  raycaster.setFromCamera(mouse,camera);//以camera为z坐标，确定所点击物体的3D空间位置
-  let intersects = raycaster.intersectObjects(scene.children, true);//确定所点击位置上的物体数量集合
+  //通过鼠标点击的位置(二维坐标)和当前相机的矩阵计算出射线位置
+  raycaster.setFromCamera(mouse,camera);
+  // 获取与raycaster射线相交的数组集合，其中的元素按照距离排序，越近的越靠前
+  let intersects = raycaster.intersectObjects(scene.children, true);
   return intersects;//返回连线经过的物体集合
 }
+
+// 更新div的位置
+function renderDiv(object) {
+  console.log(object);
+  if(JSON.stringify(object) === '{}'){
+    return
+  }
+
+  // 用CSS2DRenderer渲染的时候，他会生成一个div专门存放所有的label，也就是CSS2DRenderer.js里面的那个domElement
+  // 试过直接找到这个Div删掉里面的子元素。发现不行。
+  // 每个label其实都是绑在一个三维物体上的，这样标签才能在三维操作中找到自己的位置。
+  // 所以我们需要先找到那个三维物体，才能顺利删掉标签。
+  // 这需要我们在生成CSS2DObject的时候，给这个物体一个名字，因为scene里面有一个函数是通过名字找到物体的。
+  // 在需要删除的地方找到它。并且通过它找到它的妈妈把它删掉。
+  let objectByName = scene.getObjectByName('panel');
+  if(objectByName) objectByName.parent.remove(objectByName)
+
+  var panel = document.createElement('div');
+  var name = document.createElement('div');
+  var button = document.createElement('button');
+  panel.className = 'panel'
+  name.className = 'name'
+  button.className = 'button'
+  button.type = 'button'
+  button.innerHTML = '点击开机'
+  panel.appendChild(name);
+  panel.appendChild(button);
+  // panel.style.position = 'absolute'
+  // panel.style.backgroundColor = 'rgba(25,25,25,0.5)';
+  // panel.style.left = '0px'
+  // panel.style.top = '0px'
+  var num = 0
+  button.addEventListener('pointerdown',function (){
+    num++
+    if (num % 2 === 0) {
+      button.innerHTML = '点击开机'
+      let mixerFilter = mixer.filter(item=>{
+        return item.getRoot().name === '水泵风扇1'
+      });
+      mixerFilter[0].stopAllAction ()
+    }else{
+      button.innerHTML = '点击关机'
+      // mixer.length ? playAnimation(scene.getObjectByName('水泵风扇1')) :
+    }
+  },true)
+  console.log(num);
+  // 显示模型信息
+  name.innerHTML = "name:" + object.parent.name
+  const label =new CSS2DObject(panel);
+  label.name = 'panel'
+  object.add(label)
+}
+
+// 循环渲染
+const render = () => {
+  requestAnimationFrame(render);
+  controls.update(); // 轨道控制器的更新
+  // renderer.clear(); // 清除画布
+
+  // const elapsed = clock.getElapsedTime();
+  // pumpMesh.position.set( Math.sin( elapsed ) * 151, 0, Math.cos( elapsed ) * 151 );
+  mixer.forEach(mixer=>{
+    mixer.update(clock.getDelta())
+  })
+
+  renderer.render(scene, camera);
+  labelRenderer.render( scene, camera );
+  // if (pumpFanMesh.length > 0) {
+  //   pumpFanMesh.forEach(item=>{
+  //     item.rotateX(0.1);
+  //   })
+  // }
+};
+
 
 onMounted(() => {
   init();
@@ -370,6 +510,7 @@ onMounted(() => {
   window.onresize=function(){
     // 重置渲染器输出画布canvas尺寸
     renderer.setSize(window.innerWidth,window.innerHeight);
+    labelRenderer.setSize(window.innerWidth,window.innerHeight);
     // 重置相机投影的相关参数
     let k = window.innerWidth/window.innerHeight;//窗口宽高比
     // camera.left = -s * k;
@@ -383,5 +524,29 @@ onMounted(() => {
     camera.updateProjectionMatrix();
   };
 });
+onBeforeUnmount(()=>{
+  console.log('onBeforeUnmount');
+  container2.value.removeChild(labelRenderer.domElement)
+  container2.value.removeChild(renderer.domElement)
+  console.log('selectedObject ',selectedObject.object);
+})
 </script>
+<style scoped>
+:deep(.panel) {
+  color: red;
+  position: absolute;
+  top: -70px;
+  left: 0;
+  height: 100px;
+  background: burlywood;
+  text-align: center;
+}
+:deep(.name) {
+  color: red;
+}
+:deep(.button) {
+  margin-top: 20px;
+  color: red;
+}
+</style>
 
