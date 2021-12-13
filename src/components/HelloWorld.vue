@@ -47,6 +47,7 @@ let renderer = {};
 let controls = {};
 // css2D渲染器
 let labelRenderer = {};
+
 // 盒子
 let boxHelper = null;
 
