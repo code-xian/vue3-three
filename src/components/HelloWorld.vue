@@ -526,7 +526,6 @@ onMounted(() => {
   };
 });
 onBeforeUnmount(()=>{
-  console.log('onBeforeUnmount');
   container2.value.removeChild(labelRenderer.domElement)
   container2.value.removeChild(renderer.domElement)
   console.log('selectedObject ',selectedObject.object);
