@@ -35,8 +35,9 @@ let raycaster = new THREE.Raycaster();//创建光线投射对象
 let mouse = new THREE.Vector2();//创建二维平面
 
 let clip = {}
-let mixer = []
-
+let mixers = []
+let KeyFrames = []
+let actions = []
 // 模型
 let mesh = {};
 // 相机
@@ -79,10 +80,10 @@ async function init() {
   initPoint();
   initCamera();
   createRenderer()
-  createKeyFrame()
   tool()
   await importMesh()
   createCss2DRenderer()
+  createObjectMixer()
   // 挂载到dom中
   // document.getElementById("container2").appendChild(renderer.domElement);
   container2.value.appendChild(renderer.domElement);
@@ -173,7 +174,7 @@ function initCamera() {
   // camera = new THREE.OrthographicCamera(-s * k, s * k, s, -s, 1, 1000); // 正交相机
   camera = new THREE.PerspectiveCamera( 50, width / height, 1, 10000 );// 透视
   //设置相机位置
-  camera.position.set(0, 400, 600);
+  camera.position.set(600, 300, 0);
   //设置相机方向(指向的场景对象)
   camera.lookAt(scene.position);
 }
@@ -183,47 +184,6 @@ function createRenderer() {
   renderer = new THREE.WebGLRenderer({antialias:true,alpha:true});
   renderer.setSize(width, height); //设置渲染区域尺寸
   renderer.setClearColor(0xb9d3ff, 1); //设置背景颜色
-}
-// load a resource
-function loadObjModel({mtlUrl,objUrl,pngUrl,position}) {
-  return new Promise((resolve,reject)=>{
-    objLoader.load(
-        // resource URL
-        objUrl,
-        // called when resource is loaded
-        function ( object ) {
-          if (pngUrl) {
-            object.traverse(function(child) {
-              if (child instanceof THREE.Mesh) {
-                //设置模型皮肤
-                // child.material.map = THREE.ImageUtils.loadTexture( '/pump.png');
-                child.material.map = textureLoaderRes(pngUrl)
-              }
-            });
-          }else{
-            object.traverse(function(child) {
-              if (child instanceof THREE.Mesh) {
-                //设置模型皮肤
-                // child.material.map = THREE.ImageUtils.loadTexture( '/pump.png');
-                console.log(child);
-              }
-            });
-          }
-          object.position.set(position.x, position.y, position.z);
-          scene.add(object);
-          resolve(object)
-        },
-        // called when loading is in progresses
-        function ( xhr ) {
-          console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
-        },
-        // called when loading has errors
-        function ( error ) {
-          console.log( 'An error happened' );
-          reject()
-        }
-    );
-  })
 }
 
 // 加载纹理
@@ -337,16 +297,17 @@ function loadMtl({name ='',mtlUrl = '',objUrl,pngUrl,position,group}) {
 }
 
 // 创建关键帧动画片段
-function createKeyFrame() {
+function createKeyFrame(mesh) {
+  console.log('创建关键帧传入的对象',mesh);
   // var scaleTrack = new THREE.KeyframeTrack('水泵1.scale',[0,20],[1,1,1,3,3,3])
-  var scaleTrack = new THREE.KeyframeTrack('主机.rotation[x]',[0,3],[0,Math.PI *2])
+  var scaleTrack = new THREE.KeyframeTrack('.rotation[x]',[0,3],[0,Math.PI *2])
   var duration = 3
-  clip = new THREE.AnimationClip('default',duration,[scaleTrack])
+  return new THREE.AnimationClip(mesh.name+'default',duration,[scaleTrack])
 }
 
 function playAnimation(group) {
-  mixer.push(new THREE.AnimationMixer(group))
-  mixer.forEach(mixer=>{
+  mixers.push(new THREE.AnimationMixer(group))
+  mixers.forEach(mixer=>{
     let AnimationAction = mixer.clipAction(clip)
     // AnimationAction.timeScale = 20  // 速率
     // AnimationAction.loop = THREE.LoopOnce // 循环类型 有三种
@@ -355,8 +316,42 @@ function playAnimation(group) {
     // clip.duration = AnimationAction.time // 进度
     AnimationAction.play()
   })
-  console.log(mixer);
 }
+let modified = {
+  // loop : THREE.LoopOnce,
+  // clampWhenFinished : true,
+  timeScale : 4,
+  time :5
+}
+
+function createObjectMixer() {
+  pumpFanMesh.forEach(mesh=>{
+    mixers.push(new THREE.AnimationMixer(mesh));
+    KeyFrames.push(createKeyFrame(mesh))
+  })
+  mixers.forEach((mixer,index) =>{
+    actions.push(
+        overwriteProps( //overwrite props while clipping
+            mixer.clipAction(KeyFrames[index]),
+            modified
+        )
+    )
+  })
+  actions.forEach(action=>{
+    console.log('action111111111',action);
+    action.play();
+  })
+}
+
+
+
+let overwriteProps = (proto, object) => {
+  Object.entries(object).map(entry => {
+    proto[entry[0]] = entry[1];
+  })
+  return proto;
+}
+
 // 键盘移动事件
 function keyPressed(e) {
   var key = e.keyCode;
@@ -388,7 +383,7 @@ function mouseDownFuc(e){
   if (e.button === 2) {
     let intersectsObjArr = getSelectOBj(mouse, raycaster, e);//通过封装的getSelsectOBj函数获取鼠标选中对象集合，e是点击事件对象
     if (intersectsObjArr.length > 0) {
-      console.log(intersectsObjArr);
+      console.log('射线穿过的面',intersectsObjArr);
       let objectMesh = intersectsObjArr.find(element => element.object.type === 'Mesh'); // 寻找第一个mesh对象，对象数组是按距离由近到远排序的
       // let objectMesh = intersectsObjArr[0] // 寻找第一个mesh对象，对象数组是按距离由近到远排序的
       if (objectMesh) {
@@ -406,14 +401,10 @@ function mouseDownFuc(e){
       }else{
         boxHelper && scene.remove(boxHelper)
         selectedObject.object = {}
-          // let objectByName = scene.getObjectByName('panel');
-          // if(objectByName) objectByName.parent.remove(objectByName)
       }
     }else{
       boxHelper && scene.remove(boxHelper)
       selectedObject.object = {}
-        // let objectByName = scene.getObjectByName('panel');
-        // if(objectByName) objectByName.parent.remove(objectByName)
     }
   }
 }
@@ -431,7 +422,7 @@ function getSelectOBj(mouse, raycaster, e) {
 
 // 更新div的位置
 function renderDiv(object) {
-  console.log(object);
+  console.log('panel传入的模型',object);
   if(JSON.stringify(object) === '{}'){
     return
   }
@@ -464,16 +455,19 @@ function renderDiv(object) {
     num++
     if (num % 2 === 0) {
       button.innerHTML = '点击开机'
-      let mixerFilter = mixer.filter(item=>{
-        return item.getRoot().name === '水泵风扇1'
+      console.log(actions);
+      let action = actions.find(item=>{
+        return item.getRoot().name === '水泵风扇'+ object.parent.group
       });
-      mixerFilter[0].stopAllAction ()
+      action.play()
     }else{
       button.innerHTML = '点击关机'
-      // mixer.length ? playAnimation(scene.getObjectByName('水泵风扇1')) :
+      let action = actions.find(item=>{
+        return item.getRoot().name === '水泵风扇'+ object.parent.group
+      });
+      action.stop()
     }
   },true)
-  console.log(num);
   // 显示模型信息
   name.innerHTML = "name:" + object.parent.name
   const label =new CSS2DObject(panel);
@@ -489,15 +483,19 @@ const render = () => {
 
   // const elapsed = clock.getElapsedTime();
   // pumpMesh.position.set( Math.sin( elapsed ) * 151, 0, Math.cos( elapsed ) * 151 );
-  mixer.forEach(mixer=>{
-    mixer.update(clock.getDelta())
-  })
-
+  let delta = clock.getDelta();
+  if(mixers.length !== 0){
+    mixers.forEach(mixer=>{
+      mixer.update( delta)
+    })
+  }
   renderer.render(scene, camera);
   labelRenderer.render( scene, camera );
   // if (pumpFanMesh.length > 0) {
   //   pumpFanMesh.forEach(item=>{
-  //     item.rotateX(0.1);
+  //     if (item.onOff) {
+  //       item.rotateX(0.1);
+  //     }
   //   })
   // }
 };
@@ -540,6 +538,7 @@ onBeforeUnmount(()=>{
   height: 100px;
   background: burlywood;
   text-align: center;
+  padding:20px
 }
 :deep(.name) {
   color: red;

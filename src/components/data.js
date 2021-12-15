@@ -11,6 +11,18 @@ export default {
                 y:0,
                 z:10
             }
+        },
+        {
+            name:'水泵2',
+            group: 2,
+            objUrl:'/pump.obj',
+            mtlUrl:'/pump.mtl',
+            pngUrl:'/pump.png',
+            position:{
+                x:110,
+                y:0,
+                z:-90
+            }
         }],
         host:[{
             name:'主机1',
@@ -44,6 +56,17 @@ export default {
                 x:123,
                 y:20,
                 z:10
+            }
+        },
+        {
+            group: 2,
+            name:'水泵风扇2',
+            objUrl:'/pump-fan.obj',
+            // mtlUrl:'/pump.mtl',
+            position:{
+                x:123,
+                y:20,
+                z:-90
             }
         }]
     }
