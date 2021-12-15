@@ -100,61 +100,6 @@ async function init() {
   render()
 }
 
-function tag(){
-  const div = document.createElement('div');
-  // div.style.visibility = 'hidden';
-  div.innerHTML = 'GDP';
-  div.className = 'label';
-  div.style.padding = '4px 10px';
-  div.style.color = '#fff';
-  div.style.fontSize = '16px';
-  div.style.position = 'absolute';
-  div.style.backgroundColor = 'rgba(25,25,25,0.5)';
-  div.style.borderRadius = '5px';
-  div.addEventListener('mousedown',function (){
-    console.log(22222222)
-  })
-  // div.style.pointerEvents = 'none';//避免HTML标签遮挡三维场景的鼠标事件
-  // div元素包装成为css2模型对象CSS2DObject
-  const label =new CSS2DObject(div);
-  // label.position.set( 101, 111, 111 );
-  // 设置HTML元素标签在three.js世界坐标中位置
-  // label.position.set(x, y, z);
-  return label;
-}
-// CSS2DObject
-function createCss2DRenderer() {
-  labelRenderer = new CSS2DRenderer();
-  labelRenderer.setSize(width, height);
-  labelRenderer.domElement.style.position = 'absolute';
-// 相对鼠标的相对偏移
-  labelRenderer.domElement.style.top = '0px';
-  labelRenderer.domElement.style.left = '0px';
-  // labelRenderer.domElement.style.background = 'rgba(102,203,136,0.4)';
-//设置.pointerEvents=none，以免模型标签HTML元素遮挡鼠标选择场景模型
-//   labelRenderer.domElement.style.pointerEvents = 'none';
-  container2.value.appendChild(labelRenderer.domElement);
-}
-// 工具
-function tool() {
-  //辅助工具
-  // var helper = new THREE.AxesHelper(50);
-  // scene.add(helper);
-  const gridHelper = new THREE.GridHelper( 1000, 50,'red','blue' );
-  scene.add( gridHelper );
-}
-// 初始化模型
-function initMesh() {
-  //  (1). 创建一个立方体几何对象Geometry
-  var geometry = new THREE.BoxGeometry(100, 100, 100);
-  //  (2). 创建材质，就是立方体的表面那一层，这里设置成蓝色
-  var material = new THREE.MeshLambertMaterial({
-    color: 0x0000ff,
-  });
-  //  (3). 使用刚刚定义的玩意儿创建网格模型对象（一个有蓝色的立方体）
-  mesh = new THREE.Mesh(geometry, material);
-  scene.add(mesh);
-}
 // 初始化光源
 function initPoint() {
   // 白色的光源
@@ -167,6 +112,7 @@ function initPoint() {
   var ambient = new THREE.AmbientLight(0x444444);
   scene.add(ambient);
 }
+
 // 初始化相机
 function initCamera() {
   var k = width / height; //窗口宽高比
@@ -178,6 +124,7 @@ function initCamera() {
   //设置相机方向(指向的场景对象)
   camera.lookAt(scene.position);
 }
+
 // 生产渲染器
 function createRenderer() {
   // 渲染器
@@ -186,14 +133,13 @@ function createRenderer() {
   renderer.setClearColor(0xb9d3ff, 1); //设置背景颜色
 }
 
-// 加载纹理
-let textureLoaderRes = function (url) {
-  return textureLoader.load(url, function (map) {
-
-    // map.wrapS = THREE.RepeatWrapping;
-    // map.wrapT = THREE.RepeatWrapping;
-    return map
-  });
+// 工具
+function tool() {
+  //辅助工具
+  // var helper = new THREE.AxesHelper(50);
+  // scene.add(helper);
+  const gridHelper = new THREE.GridHelper( 1000, 50,'red','blue' );
+  scene.add( gridHelper );
 }
 
 async function importMesh() {
@@ -210,6 +156,43 @@ async function importMesh() {
   scene.add(group1,group2)
   // scene.add(...pumpMesh)
 }
+
+// CSS2DObject
+function createCss2DRenderer() {
+  labelRenderer = new CSS2DRenderer();
+  labelRenderer.setSize(width, height);
+  labelRenderer.domElement.style.position = 'absolute';
+// 相对鼠标的相对偏移
+  labelRenderer.domElement.style.top = '0px';
+  labelRenderer.domElement.style.left = '0px';
+  // labelRenderer.domElement.style.background = 'rgba(102,203,136,0.4)';
+//设置.pointerEvents=none，以免模型标签HTML元素遮挡鼠标选择场景模型
+//   labelRenderer.domElement.style.pointerEvents = 'none';
+  container2.value.appendChild(labelRenderer.domElement);
+}
+
+// 加载纹理
+let textureLoaderRes = function (url) {
+  return textureLoader.load(url, function (map) {
+    // map.wrapS = THREE.RepeatWrapping;
+    // map.wrapT = THREE.RepeatWrapping;
+    return map
+  });
+}
+
+// 初始化模型
+function initMesh() {
+  //  (1). 创建一个立方体几何对象Geometry
+  var geometry = new THREE.BoxGeometry(100, 100, 100);
+  //  (2). 创建材质，就是立方体的表面那一层，这里设置成蓝色
+  var material = new THREE.MeshLambertMaterial({
+    color: 0x0000ff,
+  });
+  //  (3). 使用刚刚定义的玩意儿创建网格模型对象（一个有蓝色的立方体）
+  mesh = new THREE.Mesh(geometry, material);
+  scene.add(mesh);
+}
+
 // 导入主机
 async function importHost() {
   let hostMeshList = []
@@ -273,7 +256,6 @@ function loadMtl({name ='',mtlUrl = '',objUrl,pngUrl,position,group}) {
         }
         // //将模型缩放并添加到场景当中
         // object.scale.set(100, 100, 100);
-        //     object.material.map =  textureLoaderRes(pngUrl)
         object.traverse(function(child) {
           if (child instanceof THREE.Mesh) {
             //设置模型皮肤
@@ -283,7 +265,6 @@ function loadMtl({name ='',mtlUrl = '',objUrl,pngUrl,position,group}) {
         object.name = name
         object.group = group
         object.position.set(position.x, position.y, position.z); // x,y,z
-        // playAnimation(object)
         resolve(object)
       },function ( xhr ) {
         console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
@@ -296,27 +277,8 @@ function loadMtl({name ='',mtlUrl = '',objUrl,pngUrl,position,group}) {
   })
 }
 
-// 创建关键帧动画片段
-function createKeyFrame(mesh) {
-  console.log('创建关键帧传入的对象',mesh);
-  // var scaleTrack = new THREE.KeyframeTrack('水泵1.scale',[0,20],[1,1,1,3,3,3])
-  var scaleTrack = new THREE.KeyframeTrack('.rotation[x]',[0,3],[0,Math.PI *2])
-  var duration = 3
-  return new THREE.AnimationClip(mesh.name+'default',duration,[scaleTrack])
-}
 
-function playAnimation(group) {
-  mixers.push(new THREE.AnimationMixer(group))
-  mixers.forEach(mixer=>{
-    let AnimationAction = mixer.clipAction(clip)
-    // AnimationAction.timeScale = 20  // 速率
-    // AnimationAction.loop = THREE.LoopOnce // 循环类型 有三种
-    // AnimationAction.clampWhenFinished = true // 是否保持在最后一帧的状态
-    AnimationAction.time = 5 // 进度
-    // clip.duration = AnimationAction.time // 进度
-    AnimationAction.play()
-  })
-}
+// action 属性
 let modified = {
   // loop : THREE.LoopOnce,
   // clampWhenFinished : true,
@@ -324,6 +286,7 @@ let modified = {
   time :5
 }
 
+// 为每个模型对象创建动画管理器
 function createObjectMixer() {
   pumpFanMesh.forEach(mesh=>{
     mixers.push(new THREE.AnimationMixer(mesh));
@@ -338,13 +301,20 @@ function createObjectMixer() {
     )
   })
   actions.forEach(action=>{
-    console.log('action111111111',action);
     action.play();
   })
 }
 
+// 创建关键帧动画片段
+function createKeyFrame(mesh) {
+  console.log('创建关键帧传入的对象',mesh);
+  // var scaleTrack = new THREE.KeyframeTrack('水泵1.scale',[0,20],[1,1,1,3,3,3])
+  var scaleTrack = new THREE.KeyframeTrack('.rotation[x]',[0,3],[0,Math.PI *2])
+  var duration = 3
+  return new THREE.AnimationClip(mesh.name+'default',duration,[scaleTrack])
+}
 
-
+// 为action 添加属性的方法
 let overwriteProps = (proto, object) => {
   Object.entries(object).map(entry => {
     proto[entry[0]] = entry[1];
@@ -360,16 +330,16 @@ function keyPressed(e) {
   }
   switch (key) {
     case 37: // 左
-      selectedObject.object.translateX(-1);
+      selectedObject.object.parent.translateX(-1);
       break;
     case 39: // 右
-      selectedObject.object.position.x += 1;
+      selectedObject.object.parent.position.x += 1;
       break;
     case 38: // 上
-      selectedObject.object.position.z -= 1;
+      selectedObject.object.parent.position.z -= 1;
       break;
     case 40: // 下
-      selectedObject.object.position.z += 1;
+      selectedObject.object.parent.position.z += 1;
       break;
   }
 }
@@ -396,7 +366,7 @@ function mouseDownFuc(e){
         // 如果此次点击的模型 和 上次点击模型不一样就执行
         if(selectedObject.object.parent?.name !== objectMesh.object.parent?.name){
           selectedObject.object = objectMesh.object
-          renderDiv(selectedObject.object)
+          renderDiv(selectedObject.object.parent)
         }
       }else{
         boxHelper && scene.remove(boxHelper)
@@ -457,19 +427,19 @@ function renderDiv(object) {
       button.innerHTML = '点击开机'
       console.log(actions);
       let action = actions.find(item=>{
-        return item.getRoot().name === '水泵风扇'+ object.parent.group
+        return item.getRoot().name === '水泵风扇'+ object.group
       });
       action.play()
     }else{
       button.innerHTML = '点击关机'
       let action = actions.find(item=>{
-        return item.getRoot().name === '水泵风扇'+ object.parent.group
+        return item.getRoot().name === '水泵风扇'+ object.group
       });
       action.stop()
     }
   },true)
   // 显示模型信息
-  name.innerHTML = "name:" + object.parent.name
+  name.innerHTML = "名称:" + object.name
   const label =new CSS2DObject(panel);
   label.name = 'panel'
   object.add(label)
@@ -480,9 +450,9 @@ const render = () => {
   requestAnimationFrame(render);
   controls.update(); // 轨道控制器的更新
   // renderer.clear(); // 清除画布
-
   // const elapsed = clock.getElapsedTime();
-  // pumpMesh.position.set( Math.sin( elapsed ) * 151, 0, Math.cos( elapsed ) * 151 );
+  // pumpMesh[0].position.set( Math.sin( elapsed ) * 151 + 120, 0, Math.cos( elapsed ) * 151+ 120 );
+
   let delta = clock.getDelta();
   if(mixers.length !== 0){
     mixers.forEach(mixer=>{
@@ -512,10 +482,12 @@ onMounted(() => {
     labelRenderer.setSize(window.innerWidth,window.innerHeight);
     // 重置相机投影的相关参数
     let k = window.innerWidth/window.innerHeight;//窗口宽高比
+    // 正交相机参数
     // camera.left = -s * k;
     // camera.right = s * k;
     // camera.top = s;
     // camera.bottom = -s;
+    // 透射相机参数
     camera.aspect = k
     // 渲染器执行render方法的时候会读取相机对象的投影矩阵属性projectionMatrix
     // 但是不会每渲染一帧，就通过相机的属性计算投影矩阵(节约计算资源)
@@ -526,26 +498,25 @@ onMounted(() => {
 onBeforeUnmount(()=>{
   container2.value.removeChild(labelRenderer.domElement)
   container2.value.removeChild(renderer.domElement)
-  console.log('selectedObject ',selectedObject.object);
 })
 </script>
 <style scoped>
 :deep(.panel) {
-  color: red;
+  color: black;
   position: absolute;
-  top: -70px;
+  top: -120px;
   left: 0;
   height: 100px;
-  background: burlywood;
+  background: powderblue;
   text-align: center;
   padding:20px
 }
 :deep(.name) {
-  color: red;
+  color: black;
 }
 :deep(.button) {
   margin-top: 20px;
-  color: red;
+  color: black;
 }
 </style>
 
