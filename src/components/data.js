@@ -35,18 +35,20 @@ export default {
                 y:0,
                 z:10
             }
-        },{
-            name:'主机2',
-            group: 2,
-            objUrl:'/host.obj',
-            mtlUrl:'/host.mtl',
-            pngUrl:'/host.png',
-            position:{
-                x:-20,
-                y:0,
-                z:-90
-            }
-        }],
+        }
+        // ,{
+        //     name:'主机2',
+        //     group: 2,
+        //     objUrl:'/host.obj',
+        //     mtlUrl:'/host.mtl',
+        //     pngUrl:'/host.png',
+        //     position:{
+        //         x:-20,
+        //         y:0,
+        //         z:-90
+        //     }
+        // }
+        ],
         pumpFan:[{
             group: 1,
             name:'水泵风扇1',
