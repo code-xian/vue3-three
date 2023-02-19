@@ -49,17 +49,18 @@ export default {
         //     }
         // }
         ],
-        pumpFan:[{
-            group: 1,
-            name:'水泵风扇1',
-            objUrl:'/pump-fan.obj',
-            // mtlUrl:'/pump.mtl',
-            position:{
-                x:123,
-                y:20,
-                z:10
-            }
-        },
+        pumpFan:[
+        //   {
+        //     group: 1,
+        //     name:'水泵风扇1',
+        //     objUrl:'/pump-fan.obj',
+        //     // mtlUrl:'/pump.mtl',
+        //     position:{
+        //         x:123,
+        //         y:20,
+        //         z:10
+        //     }
+        // },
         {
             group: 2,
             name:'水泵风扇2',
