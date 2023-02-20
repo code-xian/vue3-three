@@ -24,31 +24,31 @@ export default {
                 z:-90
             }
         }],
-        host:[{
-            name:'主机1',
-            group: 1,
-            objUrl:'/host.obj',
-            mtlUrl:'/host.mtl',
-            pngUrl:'/host.png',
-            position:{
-                x:-20,
-                y:0,
-                z:10
-            }
-        }
-        ,{
-            name:'主机2',
-            group: 2,
-            objUrl:'/host.obj',
-            mtlUrl:'/host.mtl',
-            pngUrl:'/host.png',
-            position:{
-                x:-20,
-                y:0,
-                z:-90
-            }
-        }
-        ],
+        // host:[{
+        //     name:'主机1',
+        //     group: 1,
+        //     objUrl:'/host.obj',
+        //     mtlUrl:'/host.mtl',
+        //     pngUrl:'/host.png',
+        //     position:{
+        //         x:-20,
+        //         y:0,
+        //         z:10
+        //     }
+        // }
+        // ,{
+        //     name:'主机2',
+        //     group: 2,
+        //     objUrl:'/host.obj',
+        //     mtlUrl:'/host.mtl',
+        //     pngUrl:'/host.png',
+        //     position:{
+        //         x:-20,
+        //         y:0,
+        //         z:-90
+        //     }
+        // }
+        // ],
         pumpFan:[
           {
             group: 1,
