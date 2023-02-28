@@ -27,7 +27,7 @@ export default {
         host:[{
             name:'主机1',
             group: 1,
-            objUrl:'/host.obj',
+            objUrl: new URL(`../assets/host.obj`, import.meta.url).href,
             mtlUrl:'/host.mtl',
             pngUrl:'/host.png',
             position:{
@@ -39,7 +39,7 @@ export default {
         ,{
             name:'主机2',
             group: 2,
-            objUrl:'/host.obj',
+            objUrl:new URL(`../assets/host.obj`, import.meta.url).href,
             mtlUrl:'/host.mtl',
             pngUrl:'/host.png',
             position:{
